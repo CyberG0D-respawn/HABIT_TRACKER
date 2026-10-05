@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Habit Tracker — Daily Browser Edition</title>
+<style>
+  :root{
+    --bg:#f4f6f5; --card:#fff; --ink:#14201b; --muted:#6b7a72;
+    --line:#d8e0dc; --accent:#0da271; --accent-dark:#0a7f59; --accent-soft:#dff5ea;
+    --today:#ffbf2a; --danger:#e5484d; --radius:14px;
+    --shadow:0 6px 24px rgba(15,40,28,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);padding:20px;min-height:100vh}
+  .app{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+  header.app-header{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:40px;height:40px;border-radius:50%;background:conic-gradient(from -90deg,#0da271 0 25%,#12c48a 0 50%,#0a7f59 0 75%,#0da271 0);display:grid;place-items:center;color:#fff;font-weight:900}
+  .brand h1{margin:0;font-size:18px;letter-spacing:.3px}
+  .brand p{margin:0;font-size:12px;color:var(--muted)}
+  .month-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .month-nav button,.toolbar button,.btn{border:1.5px solid var(--ink);background:#fff;border-radius:999px;padding:7px 14px;font-weight:700;font-size:13px;cursor:pointer;transition:.15s}
+  .month-nav button:hover,.toolbar button:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+  .month-nav button.primary,.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  input[type="month"]{border:1.5px solid var(--ink);border-radius:999px;padding:6px 12px;font-weight:700;font-size:13px;background:#fff}
+  .layout{display:grid;grid-template-columns:320px minmax(0,1fr) 320px;gap:16px;align-items:start}
+  @media (max-width:1080px){.layout{grid-template-columns:1fr 1fr}.center-card{grid-column:1/-1;order:-1}}
+  @media (max-width:720px){body{padding:12px}.layout{grid-template-columns:1fr}.month-nav{width:100%}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+  .card h2{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin:0 0 10px;padding-bottom:8px;border-bottom:2px solid var(--ink);display:flex;justify-content:space-between;align-items:center}
+  .habit-row{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#fff}
+  .habit-row .num{width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800;flex-shrink:0}
+  .habit-row input[type="text"]{flex:1;border:none;border-bottom:1px dashed var(--muted);font-weight:800;font-size:13px;text-transform:uppercase;padding:2px;background:transparent;min-width:0}
+  .habit-row input[type="text"]:focus{outline:none;border-bottom-style:solid;border-color:var(--accent);background:var(--accent-soft)}
+  .pct{font-size:11px;font-weight:800;color:var(--accent-dark);white-space:nowrap}
+  .bar{height:6px;background:#e9efec;border-radius:999px;overflow:hidden;margin-top:6px}
+  .bar>i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .3s}
+  .icon-btn{border:1px solid var(--line);background:#fff;border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:14px;line-height:1}
+  .icon-btn:hover{border-color:var(--ink)}
+  .icon-btn.today-check.done{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .add-btn{width:100%;border:2px dashed var(--line);background:transparent;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;color:var(--muted)}
+  .add-btn:hover{border-color:var(--accent);color:var(--accent-dark)}
+  .center-card{text-align:center;position:relative}
+  svg#tracker{width:100%;max-width:560px;height:auto;display:block;margin:0 auto;user-select:none;touch-action:manipulation}
+  .day-label{font-size:11px;font-weight:800;fill:#2b3a33}
+  .day-label.today-text{fill:var(--accent-dark);font-size:13px}
+  .cell{fill:#edf3f0;stroke:#3a4a43;stroke-width:.9;cursor:pointer;transition:fill .12s}
+  .cell:hover{fill:#bfe9d4}
+  .cell.done{fill:var(--accent)}
+  .cell.today-col{stroke:var(--today);stroke-width:1.6}
+  .cell.future{opacity:.55}
+  #tooltip{position:fixed;pointer-events:none;background:#111;color:#fff;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;opacity:0;transition:opacity .1s;z-index:50;white-space:nowrap}
+  .stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0}
+  .stat{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fbfdfc}
+  .stat b{font-size:20px;display:block}
+  .stat span{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  .overall{margin-top:6px;text-align:left}
+  .overall .top{display:flex;justify-content:space-between;font-size:12px;font-weight:800}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px}
+  .toolbar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+  textarea{width:100%;min-height:140px;border:1px solid var(--line);border-radius:10px;padding:10px;font-family:inherit;font-size:13px;resize:vertical;line-height:1.5}
+  textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  .goal{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:8px}
+  .goal input[type="text"]{flex:1;border:none;font-weight:700;font-size:13px;min-width:0}
+  .goal input[type="text"]:focus{outline:none;background:var(--accent-soft)}
+  .goal input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent)}
+  .goal.done input[type="text"]{text-decoration:line-through;color:var(--muted)}
+  .today-list{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+  .today-item{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:9px 10px;cursor:pointer;background:#fff;text-align:left;width:100%;font-weight:700;font-size:13px}
+  .today-item.done{background:var(--accent-soft);border-color:var(--accent)}
+  .today-item .box{width:20px;height:20px;border-radius:6px;border:2px solid var(--ink);display:grid;place-items:center;flex-shrink:0;background:#fff}
+  .today-item.done .box{background:var(--accent);border-color:var(--accent);color:#fff}
+  .quote{margin-top:12px;font-style:italic;font-size:12px;color:#4a5a52;text-align:center;border-top:1px solid var(--line);padding-top:10px}
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:#111;color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:700;opacity:0;transition:.25s;z-index:99}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap}
+  .tab-btn{border:1.5px solid var(--ink);background:#fff;border-radius:999px;padding:8px 18px;font-weight:800;font-size:13px;cursor:pointer}
+  .tab-btn.active{background:var(--ink);color:#fff}
+  .rm-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:900px){.rm-grid{grid-template-columns:1fr}}
+  .rm-table{width:100%;border-collapse:collapse;font-size:13px}
+  .rm-table th{background:#0f1e2e;color:#fff;text-align:left;padding:10px;font-size:11px;letter-spacing:.6px;text-transform:uppercase}
+  .rm-table td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+  .rm-table tr:nth-child(even) td{background:#f7faf9}
+  .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}
+  .b-pwn{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+  .b-thm{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd}
+  .b-hybrid{background:#e0e7ff;color:#3730a3;border:1px solid #a5b4fc}
+  .b-review{background:#e5e7eb;color:#374151;border:1px solid #9ca3af}
+  .rule-card{border:1px solid var(--line);border-top:4px solid var(--ink);border-radius:10px;padding:12px;background:#fff}
+  .phase{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff}
+  .phase h3{margin:0 0 8px;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .phase .hrs{background:#0284c9;color:#fff;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:800}
+  .phase ul{margin:8px 0;padding-left:18px;font-size:13px}
+  .phase .ms{color:#059669;font-weight:700;font-size:12px;border-top:1px dashed var(--line);padding-top:8px;margin-top:8px}
+  .ms-item{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:#fff;cursor:pointer;font-size:13px;font-weight:600}
+  .ms-item.done{background:var(--accent-soft);border-color:var(--accent)}
+  .ms-item input{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;margin-top:1px}
+  .wk-day{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:9px 10px;margin-bottom:8px;background:#fff;font-size:13px;font-weight:700;cursor:pointer}
+  .wk-day.done{background:var(--accent-soft);border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div id="tooltip"></div>
+<div id="toast"></div>
+
+<div class="app">
+  <header class="app-header">
+    <div class="brand">
+      <div class="logo">◉</div>
+      <div><h1>Radial Habit Tracker</h1><p>Daily browser edition • auto-saves • click cells to mark</p></div>
+    </div>
+    <div class="month-nav">
+      <button id="prevBtn" title="Previous month">‹ Prev</button>
+      <input type="month" id="monthPicker" value="2026-05">
+      <button id="nextBtn" title="Next month">Next ›</button>
+      <button id="todayBtn" class="primary">Today</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" id="tabHabits">◉ Habit Tracker</button>
+    <button class="tab-btn" id="tabRoadmap">🛡️ Cybersecurity Roadmap • 15h/week</button>
+  </div>
+
+  <div class="layout" id="view-habits">
+    <section class="card">
+      <h2>Habits <span id="habitCount"></span></h2>
+      <div id="habitList"></div>
+      <button class="add-btn" id="addHabit">+ Add habit (max 12)</button>
+      <div class="overall">
+        <div class="top"><span>Pace (elapsed days)</span><span id="overallPct">0%</span></div>
+        <div class="bar"><i id="overallBar" style="width:0%"></i></div>
+      </div>
+      <p class="hint">Tip: rename inline. The outer ring = Habit 1, inner ring = last habit — same as the wall chart.</p>
+    </section>
+
+    <section class="card center-card">
+      <h2 style="text-align:left">Tracker <span id="monthLabel" style="font-weight:800"></span></h2>
+      <svg id="tracker" viewBox="0 0 480 480" role="img" aria-label="Radial habit tracker">
+        <g id="cells" transform="translate(240,240)"></g>
+        <g id="labels" transform="translate(240,240)"></g>
+        <g id="centerCap" transform="translate(240,240)">
+          <ellipse cx="0" cy="0" rx="62" ry="50" fill="#fff" stroke="#14201b" stroke-width="1.5"/>
+          <text x="0" y="-6" text-anchor="middle" font-size="9" font-weight="800" fill="#14201b">MONTH / YEAR</text>
+          <text id="centerMonth" x="0" y="14" text-anchor="middle" font-size="14" font-weight="900" fill="#0a7f59">MAY 2026</text>
+        </g>
+      </svg>
+      <div class="stats-row">
+        <div class="stat"><b id="statToday">0%</b><span>Today</span></div>
+        <div class="stat"><b id="statStreak">0</b><span>Day streak</span></div>
+        <div class="stat"><b id="statBest">—</b><span>Best day</span></div>
+      </div>
+      <div class="toolbar">
+        <button id="markToday">Mark all today ✓</button>
+        <button id="clearBtn">Clear month</button>
+        <button id="exportBtn">Export JSON</button>
+        <button class="primary" id="printBtn">Print</button>
+      </div>
+      <p class="hint">Click = toggle • Hover = details • Gold outline = today • Drag-paint: hold mouse and sweep across cells.</p>
+    </section>
+
+    <section style="display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <h2>Today — <span id="todayLabel"></span></h2>
+        <div class="today-list" id="todayList"></div>
+      </div>
+      <div class="card">
+        <h2>Observations</h2>
+        <textarea id="obs" placeholder="How did today go? Energy, cravings, notes..."></textarea>
+        <h2 style="margin-top:14px">Key Goals</h2>
+        <div id="goals"></div>
+        <button class="add-btn" id="addGoal">+ Add goal</button>
+        <div class="quote">“Discipline doesn't care how you feel. It needs to be done, even when you don't feel like it.”</div>
+      </div>
+    </section>
+  </div>
+
+  <div id="view-roadmap" hidden>
+    <div class="card" style="margin-bottom:16px">
+      <h2>Cybersecurity Roadmap <span>Target: 15 Hrs / Week • 20 Weeks (~300 Hrs)</span></h2>
+      <p style="margin:0 0 6px;font-weight:800;color:#0284c9">Dual-Track Mastery: TryHackMe &amp; pwn.college</p>
+      <p class="hint" style="margin-top:0">Broad ops (network, web, AD via TryHackMe) + deep systems (Linux, assembly, binary exploitation via pwn.college). This tab auto-saves. Sunday review links back to Observations.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
+        <label style="font-weight:800;font-size:13px">Week <select id="rmWeek" style="font-weight:800;padding:6px 10px;border-radius:999px;border:1.5px solid var(--ink)"></select></label>
+        <span id="rmHours" style="font-weight:800;font-size:13px"></span>
+        <div class="bar" style="flex:1;min-width:160px"><i id="rmBar" style="width:0%"></i></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <h2>Weekly 15-hour schedule — check off as you complete</h2>
+      <div style="overflow-x:auto">
+      <table class="rm-table">
+        <tr><th></th><th>Day</th><th>Time</th><th>Primary focus</th><th>Target platform &amp; deliverables</th><th>Track</th></tr>
+        <tbody id="rmDays"></tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="rm-grid" style="margin-bottom:16px">
+      <div class="card"><h2>Core operating rules</h2>
+        <div class="rule-card" style="margin-bottom:8px"><b>1. 30-Minute Stasis Rule</b><br><span class="hint">If stuck on a dojo level for &gt;30 mins without progress, stop typing. Re-watch lecture, inspect state in gdb/strace, write down assumptions.</span></div>
+        <div class="rule-card" style="margin-bottom:8px"><b>2. Central Knowledge Vault</b><br><span class="hint">Maintain Obsidian or GitHub repo. Document commands, payloads, write-ups every Sunday.</span></div>
+        <div class="rule-card"><b>3. Environment Setup</b><br><span class="hint">Clean Linux (WSL2/Native) with gdb-pwndbg, pwntools, ghidra, burpsuite pre-configured.</span></div>
+      </div>
+      <div class="card"><h2>Milestone tracking &amp; verification <span id="rmMsPct"></span></h2>
+        <div id="rmMilestones"></div>
+      </div>
+    </div>
+
+    <div class="rm-grid">
+      <div class="phase"><h3>Phase 1: Terminal &amp; Fundamentals <span class="hrs">W1–W3 (45 Hrs)</span></h3>
+        <ul><li><b>pwn.college:</b> Linux Luminarium (CLI, pipes, permissions, globbing).</li><li><b>TryHackMe:</b> Pre-Security / Cyber Security 101 (Networking, TCP/IP, DNS).</li></ul>
+        <div class="ms">✓ Milestone: Custom Bash/Python script for log parsing or Nmap automation.</div></div>
+      <div class="phase"><h3>Phase 2: Web &amp; Low-Level Systems <span class="hrs">W4–W8 (75 Hrs)</span></h3>
+        <ul><li><b>TryHackMe:</b> Jr Penetration Tester + Web App Pentesting (OWASP Top 10, Burp).</li><li><b>pwn.college:</b> Computing 101 + Playing With Programs (x86-64, Assembly, Memory).</li></ul>
+        <div class="ms">✓ Milestone: Solve 10 medium THM web rooms &amp; reverse binaries in Ghidra.</div></div>
+      <div class="phase"><h3>Phase 3: Binary Exploitation &amp; PrivEsc <span class="hrs">W9–W14 (90 Hrs)</span></h3>
+        <ul><li><b>pwn.college:</b> Program Security (buffer overflows, shellcode, ROP).</li><li><b>TryHackMe:</b> Linux + Windows Privilege Escalation paths.</li></ul>
+        <div class="ms">✓ Milestone: Automated Python exploit bypassing NX/ASLR.</div></div>
+      <div class="phase"><h3>Phase 4: Active Directory &amp; Systems <span class="hrs">W15–W20 (90 Hrs)</span></h3>
+        <ul><li><b>TryHackMe:</b> Active Directory + Red Teaming (Kerberoasting, Lateral Movement).</li><li><b>pwn.college:</b> System Security / Software Exploitation (Sandboxing, Kernels).</li></ul>
+        <div class="ms">✓ Milestone: Compromise full AD network path without hints.</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const NS="http://www.w3.org/2000/svg";
+  const cellsG=document.getElementById('cells'), labelsG=document.getElementById('labels');
+  const tooltip=document.getElementById('tooltip'), toast=document.getElementById('toast');
+  const monthPicker=document.getElementById('monthPicker');
+  const innerR=62, outerR=208, labelR=224;
+
+  const DEFAULT_HABITS=["WAKE UP 5:30","DRINK WATER 3 ltr","READ 40 PAGES","MEDITATION","NO JUNK FOOD","LESS PHONE (>4 hr)","TRAINING 1 hr","SLEEP BY 23:00"];
+  let state={year:2026,month:5,habits:[...DEFAULT_HABITS],checks:{},obs:"",goals:[{text:"3K RUN",done:false}]};
+  let painting=null; // true/false while drag-painting
+
+  function daysInMonth(y,m){return new Date(y,m,0).getDate();}
+  function key(y,m){return `radial-habits-${y}-${String(m).padStart(2,'0')}`;}
+  function showToast(msg){toast.textContent=msg;toast.classList.add('show');clearTimeout(showToast.t);showToast.t=setTimeout(()=>toast.classList.remove('show'),1800);}
+
+  function findLatestHabits(){
+    try{
+      const keys=[];
+      for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('radial-habits-')===0)keys.push(k);}
+      keys.sort().reverse();
+      for(const k of keys){try{const s=JSON.parse(localStorage.getItem(k));if(s&&Array.isArray(s.habits)&&s.habits.length)return s.habits.slice(0,12);}catch(e){}}
+    }catch(e){}
+    return [...DEFAULT_HABITS];
+  }
+  function elapsedDays(y,m,DAYS){
+    const t=new Date();t.setHours(0,0,0,0);
+    const start=new Date(y,m-1,1);
+    if(t<start)return 0;
+    if(t>=new Date(y,m-1,DAYS))return DAYS;
+    if(t.getFullYear()===y&&t.getMonth()+1===m)return t.getDate();
+    return DAYS;
+  }
+  function load(y,m){
+    try{
+      const raw=localStorage.getItem(key(y,m));
+      if(raw){const s=JSON.parse(raw);state={...state,...s,year:y,month:m};return;}
+    }catch(e){}
+    // carry habit names forward from most recent saved month
+    const carry=findLatestHabits();
+    state={year:y,month:m,habits:carry,checks:{},obs:"",goals:[{text:"3K RUN",done:false}]};
+  }
+  function save(){try{localStorage.setItem(key(state.year,state.month),JSON.stringify({habits:state.habits,checks:state.checks,obs:state.obs,goals:state.goals}));}catch(e){}}
+
+  function polar(r,deg){const rad=deg*Math.PI/180;return [r*Math.cos(rad),r*Math.sin(rad)];}
+  function sector(r0,r1,a0,a1){
+    const large=(a1-a0)>180?1:0;
+    const [x0o,y0o]=polar(r1,a0),[x1o,y1o]=polar(r1,a1),[x1i,y1i]=polar(r0,a1),[x0i,y0i]=polar(r0,a0);
+    return `M${x0o},${y0o} A${r1},${r1} 0 ${large} 1 ${x1o},${y1o} L${x1i},${y1i} A${r0},${r0} 0 ${large} 0 ${x0i},${y0i} Z`;
+  }
+
+  function isToday(y,m,d){const n=new Date();return n.getFullYear()===y&&n.getMonth()+1===m&&n.getDate()===d;}
+  function isFuture(y,m,d){const t=new Date();t.setHours(0,0,0,0);return new Date(y,m-1,d)>t;}
+
+  function render(){
+    const {year:y,month:m,habits}=state;
+    const DAYS=daysInMonth(y,m), H=habits.length, ring=(outerR-innerR)/H, slice=360/DAYS;
+    cellsG.innerHTML="";labelsG.innerHTML="";
+    const monthName=new Date(y,m-1,1).toLocaleString('en',{month:'long'}).toUpperCase();
+    document.getElementById('monthLabel').textContent=`${monthName} ${y} • ${DAYS} days`;
+    document.getElementById('centerMonth').textContent=`${monthName.slice(0,3)} ${y}`;
+    document.getElementById('habitCount').textContent=`${H} habits`;
+    const nowDate=new Date();const todayStr=nowDate.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'});
+    document.getElementById('todayLabel').textContent=todayStr;
+
+    for(let h=0;h<H;h++){
+      const r1=outerR-h*ring, r0=r1-ring;
+      for(let d=1;d<=DAYS;d++){
+        const a0=-90+(d-1)*slice+0.4, a1=-90+d*slice-0.4;
+        const p=document.createElementNS(NS,'path');
+        p.setAttribute('d',sector(r0,r1,a0,a1));
+        const done=!!state.checks[`${h}-${d}`];
+        const future=isFuture(y,m,d);
+        let cls='cell'+(done?' done':'')+(isToday(y,m,d)?' today-col':'')+(future?' future':'');
+        p.setAttribute('class',cls);
+        p.dataset.h=h;p.dataset.d=d;
+        const title=document.createElementNS(NS,'title');
+        title.textContent=`${habits[h]} • Day ${d}`;
+        p.appendChild(title);
+        p.addEventListener('pointerenter',e=>{
+          const isDone=!!state.checks[`${h}-${d}`];
+          tooltip.textContent=`${h+1}. ${habits[h]} — Day ${d} ${isDone?'✓':''}${future?' (future)':''}`;
+          tooltip.style.left=(e.clientX+12)+'px';tooltip.style.top=(e.clientY+12)+'px';tooltip.style.opacity=1;
+          if(painting!==null){setCheck(h,d,painting);}
+        });
+        p.addEventListener('pointerleave',()=>tooltip.style.opacity=0);
+        p.addEventListener('pointerdown',e=>{
+          e.preventDefault();
+          if(isFuture(y,m,d)){showToast('Future day — marking disabled');return;}
+          painting=!state.checks[`${h}-${d}`];setCheck(h,d,painting);
+        });
+        cellsG.appendChild(p);
+      }
+    }
+
+    for(let d=1;d<=DAYS;d++){
+      const mid=-90+(d-0.5)*slice,[lx,ly]=polar(labelR,mid);
+      const t=document.createElementNS(NS,'text');
+      t.setAttribute('x',lx);t.setAttribute('y',ly+4);t.setAttribute('text-anchor','middle');
+      t.setAttribute('class','day-label'+(isToday(y,m,d)?' today-text':''));
+      t.textContent=d;labelsG.appendChild(t);
+    }
+    const outer=document.createElementNS(NS,'circle');
+    outer.setAttribute('r',outerR);outer.setAttribute('fill','none');outer.setAttribute('stroke','#14201b');outer.setAttribute('stroke-width','1.8');outer.setAttribute('pointer-events','none');
+    cellsG.appendChild(outer);
+
+    renderHabits();renderToday();renderGoals();renderStats();
+    document.getElementById('obs').value=state.obs||"";
+  }
+
+  window.addEventListener('pointerup',()=>{painting=null;tooltip.style.opacity=0;});
+  function setCheck(h,d,val){
+    if(isFuture(state.year,state.month,d)){showToast('Future day — marking disabled');return;}
+    if(val)state.checks[`${h}-${d}`]=1;else delete state.checks[`${h}-${d}`];
+    save();
+    // fast update without full rerender
+    const el=cellsG.querySelector(`path[data-h="${h}"][data-d="${d}"]`);
+    if(el)el.classList.toggle('done',!!val);
+    renderHabits();renderToday();renderStats();
+  }
+
+  function renderHabits(){
+    const DAYS=daysInMonth(state.year,state.month);
+    const list=document.getElementById('habitList');list.innerHTML="";
+    state.habits.forEach((h,i)=>{
+      let c=0;for(let d=1;d<=DAYS;d++)if(state.checks[`${i}-${d}`])c++;
+      const pct=Math.round(c/DAYS*100);
+      const row=document.createElement('div');row.innerHTML=`
+        <div class="habit-row"><div class="num">${i+1}</div>
+        <input type="text" value="" aria-label="Habit ${i+1}">
+        <span class="pct">${pct}%</span>
+        <button class="icon-btn" title="Delete">×</button></div>
+        <div class="bar"><i style="width:${pct}%"></i></div>
+        <div style="height:8px"></div>`;
+      const inp=row.querySelector('input');inp.value=h;
+      inp.addEventListener('change',()=>{state.habits[i]=inp.value.toUpperCase()||`HABIT ${i+1}`;save();render();showToast('Habit renamed');});
+      row.querySelector('.icon-btn').addEventListener('click',()=>{
+        if(state.habits.length<=1){showToast('Keep at least 1 habit');return;}
+        if(!confirm(`Delete "${h}"?`))return;
+        state.habits.splice(i,1);
+        const nc={};Object.entries(state.checks).forEach(([k,v])=>{const [hh,dd]=k.split('-').map(Number);if(hh<i)nc[k]=v;else if(hh>i)nc[`${hh-1}-${dd}`]=v;});
+        state.checks=nc;save();render();
+      });
+      list.appendChild(row);
+    });
+    const H2=state.habits.length, done=Object.keys(state.checks).length;
+    const monthTotal=H2?H2*DAYS:0;
+    const elapsed=elapsedDays(state.year,state.month,DAYS);
+    const expectedTotal=H2*elapsed;
+    const pacePct=expectedTotal?Math.min(100,Math.round(done/expectedTotal*100)):0;
+    const monthPct=monthTotal?Math.round(done/monthTotal*100):0;
+    document.getElementById('overallPct').textContent=pacePct+'% pace';
+    document.getElementById('overallPct').title=`${monthPct}% of full month (${done}/${monthTotal})`;
+    document.getElementById('overallBar').style.width=pacePct+'%';
+  }
+
+  function renderToday(){
+    const t=new Date(), sameMonth=t.getFullYear()===state.year&&t.getMonth()+1===state.month;
+    const box=document.getElementById('todayList');box.innerHTML="";
+    if(!sameMonth){box.innerHTML=`<p class="hint">Switch to ${t.toLocaleString('en',{month:'long'})} ${t.getFullYear()} to check off today.</p>`;return;}
+    const d=t.getDate();
+    state.habits.forEach((h,i)=>{
+      const done=!!state.checks[`${i}-${d}`];
+      const b=document.createElement('button');
+      b.className='today-item'+(done?' done':'');
+      const boxEl=document.createElement('span');
+      boxEl.className='box';
+      boxEl.textContent=done?'✓':'';
+      const label=document.createElement('span');
+      label.textContent=`${i+1}. ${h}`;
+      b.appendChild(boxEl);b.appendChild(label);
+      b.addEventListener('click',()=>setCheck(i,d,!done));
+      box.appendChild(b);
+    });
+  }
+
+  function renderGoals(){
+    const g=document.getElementById('goals');g.innerHTML="";
+    state.goals.forEach((goal,i)=>{
+      const div=document.createElement('div');div.className='goal'+(goal.done?' done':'');
+      div.innerHTML=`<input type="checkbox" ${goal.done?'checked':''}><input type="text" value="" placeholder="Goal ${i+1}"><button class="icon-btn">×</button>`;
+      const [cb,txt,del]=div.querySelectorAll('input,button');
+      txt.value=goal.text;
+      cb.addEventListener('change',()=>{goal.done=cb.checked;save();renderGoals();});
+      txt.addEventListener('change',()=>{goal.text=txt.value.toUpperCase();save();});
+      del.addEventListener('click',()=>{state.goals.splice(i,1);save();renderGoals();});
+      g.appendChild(div);
+    });
+  }
+
+  function renderStats(){
+    const y=state.year,m=state.month,DAYS=daysInMonth(y,m),H=state.habits.length;
+    const t=new Date();
+    let todayPct=0;
+    if(t.getFullYear()===y&&t.getMonth()+1===m){
+      let c=0;for(let h=0;h<H;h++)if(state.checks[`${h}-${t.getDate()}`])c++;
+      todayPct=Math.round(c/H*100);
+    }
+    document.getElementById('statToday').textContent=todayPct+'%';
+    // streak: consecutive 100% days ending today (or yesterday if today incomplete)
+    let streak=0;
+    let startD=DAYS;
+    if(t.getFullYear()===y&&t.getMonth()+1===m){
+      startD=Math.min(DAYS,t.getDate());
+      let todayC=0;for(let h=0;h<H;h++)if(state.checks[`${h}-${startD}`])todayC++;
+      if(todayC!==H)startD--;
+    }
+    for(let d=startD;d>=1;d--){
+      let c=0;for(let h=0;h<H;h++)if(state.checks[`${h}-${d}`])c++;
+      if(c===H&&H>0)streak++;else break;
+    }
+    // best day
+    let best='—',bestC=-1;
+    for(let d=1;d<=DAYS;d++){let c=0;for(let h=0;h<H;h++)if(state.checks[`${h}-${d}`])c++;if(c>bestC){bestC=c;best=`D${d} (${Math.round(c/H*100)}%)`;}}
+    document.getElementById('statStreak').textContent=streak;
+    document.getElementById('statBest').textContent=best;
+  }
+
+  // nav
+  function goto(y,m){state.year=y;state.month=m;load(y,m);monthPicker.value=`${y}-${String(m).padStart(2,'0')}`;save();render();}
+  monthPicker.addEventListener('change',()=>{const [y,m]=monthPicker.value.split('-').map(Number);goto(y,m);});
+  document.getElementById('prevBtn').addEventListener('click',()=>{let y=state.year,m=state.month-1;if(m<1){m=12;y--;}goto(y,m);});
+  document.getElementById('nextBtn').addEventListener('click',()=>{let y=state.year,m=state.month+1;if(m>12){m=1;y++;}goto(y,m);});
+  document.getElementById('todayBtn').addEventListener('click',()=>{const n=new Date();goto(n.getFullYear(),n.getMonth()+1);showToast('Jumped to today');});
+  document.getElementById('addHabit').addEventListener('click',()=>{
+    if(state.habits.length>=12){showToast('Max 12 habits');return;}
+    state.habits.push(`NEW HABIT ${state.habits.length+1}`);save();render();showToast('Habit added');
+  });
+  document.getElementById('markToday').addEventListener('click',()=>{
+    const n=new Date();if(n.getFullYear()!==state.year||n.getMonth()+1!==state.month){showToast('Switch to current month first');return;}
+    const d=n.getDate();state.habits.forEach((_,h)=>state.checks[`${h}-${d}`]=1);save();render();showToast(`Day ${d} completed ✓`);
+  });
+  document.getElementById('clearBtn').addEventListener('click',()=>{if(confirm('Clear all checks this month?')){state.checks={};save();render();showToast('Month cleared');}});
+  document.getElementById('exportBtn').addEventListener('click',()=>{
+    const blob=new Blob([JSON.stringify({month:`${state.year}-${state.month}`,...state},null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`habits-${state.year}-${state.month}.json`;a.click();
+  });
+  document.getElementById('printBtn').addEventListener('click',()=>window.print());
+  document.getElementById('obs').addEventListener('input',e=>{state.obs=e.target.value;save();});
+  document.getElementById('addGoal').addEventListener('click',()=>{state.goals.push({text:"",done:false});save();renderGoals();});
+
+  // ---- Tabs ----
+  const viewHabits=document.getElementById('view-habits'), viewRoadmap=document.getElementById('view-roadmap');
+  const tabHabits=document.getElementById('tabHabits'), tabRoadmap=document.getElementById('tabRoadmap');
+  function showTab(which){
+    const isH=which==='habits';
+    viewHabits.hidden=!isH; viewRoadmap.hidden=isH;
+    tabHabits.classList.toggle('active',isH); tabRoadmap.classList.toggle('active',!isH);
+  }
+  tabHabits.addEventListener('click',()=>showTab('habits'));
+  tabRoadmap.addEventListener('click',()=>showTab('roadmap'));
+
+  // ---- Cybersecurity Roadmap (persisted) ----
+  const RM_DAYS=[
+    {day:'Monday',hrs:2,focus:'Systems Theory',detail:'Watch pwn.college ASU lectures; review C, Assembly, Linux kernel fundamentals.',track:'PWN.COLLEGE',cls:'b-pwn'},
+    {day:'Tuesday',hrs:2,focus:'Operational Skills',detail:'Complete 1–2 rooms in active THM path (Networking, Web, or PrivEsc).',track:'TRYHACKME',cls:'b-thm'},
+    {day:'Wednesday',hrs:2,focus:'Systems Practice',detail:'pwn.college dojo challenges; debug binaries with GDB, inspect memory.',track:'PWN.COLLEGE',cls:'b-pwn'},
+    {day:'Thursday',hrs:2,focus:'Operational Tools',detail:'Guided web/network labs; practice Burp Suite, Nmap, Wireshark.',track:'TRYHACKME',cls:'b-thm'},
+    {day:'Friday',hrs:1.5,focus:'Scripting & Automation',detail:'Tackle stalled dojo levels; write Python automation with pwntools.',track:'PWN.COLLEGE',cls:'b-pwn'},
+    {day:'Saturday',hrs:3,focus:'Deep Work Session',detail:'1.5 hrs hard pwn.college challenge + 1.5 hrs THM capstone/harder room.',track:'HYBRID',cls:'b-hybrid'},
+    {day:'Sunday',hrs:2.5,focus:'Review & Documentation',detail:'Write CTF write-ups, organize notes in vault, or unguided CTF room.',track:'REVIEW',cls:'b-review'}
+  ];
+  const RM_MILESTONES=[
+    'Complete pwn.college "Linux Luminarium" dojo',
+    'Earn THM "Pre-Security" Path Certificate',
+    'Master Burp Suite Repeater & Intruder modules',
+    'Write x86-64 Assembly code for shellcode injection',
+    'Complete THM "Jr Penetration Tester" Learning Path',
+    'Craft local buffer overflow exploit script using pwntools',
+    'Complete Linux & Windows PrivEsc rooms on THM',
+    'Execute Kerberoasting attack on Active Directory lab',
+    'Publish 5 technical CTF write-ups in private vault',
+    'Complete 300 total hours across both platforms'
+  ];
+  const RM_KEY='cyber-roadmap-v1';
+  let rmState={week:1,weeks:{},milestones:{}};
+  try{const raw=localStorage.getItem(RM_KEY);if(raw)rmState={...rmState,...JSON.parse(raw)};}catch(e){}
+  function rmSave(){try{localStorage.setItem(RM_KEY,JSON.stringify(rmState));}catch(e){}}
+  const rmWeekSel=document.getElementById('rmWeek');
+  for(let w=1;w<=20;w++){const o=document.createElement('option');o.value=w;o.textContent=`Week ${w}`;rmWeekSel.appendChild(o);}
+  rmWeekSel.value=rmState.week||1;
+  rmWeekSel.addEventListener('change',()=>{rmState.week=+rmWeekSel.value;rmSave();renderRoadmap();});
+  function renderRoadmap(){
+    const w=rmState.week||1;
+    const done=rmState.weeks[w]||{};
+    const tbody=document.getElementById('rmDays');tbody.innerHTML='';
+    let hrs=0;
+    RM_DAYS.forEach((r,i)=>{
+      const isDone=!!done[i];
+      if(isDone)hrs+=r.hrs;
+      const tr=document.createElement('tr');
+      const tdCheck=document.createElement('td');
+      const cb=document.createElement('input');
+      cb.type='checkbox';cb.checked=isDone;cb.style.width='18px';cb.style.height='18px';cb.style.accentColor='var(--accent)';
+      cb.addEventListener('change',()=>{
+        if(!rmState.weeks[w])rmState.weeks[w]={};
+        rmState.weeks[w][i]=cb.checked?1:0;
+        rmSave();renderRoadmap();
+      });
+      tdCheck.appendChild(cb);tr.appendChild(tdCheck);
+      [[r.day],[r.hrs+' hrs'],[r.focus],[r.detail]].forEach(([txt])=>{
+        const td=document.createElement('td');td.textContent=txt;tr.appendChild(td);
+      });
+      const tdB=document.createElement('td');
+      const sp=document.createElement('span');sp.className='badge '+r.cls;sp.textContent=r.track;tdB.appendChild(sp);tr.appendChild(tdB);
+      tbody.appendChild(tr);
+    });
+    document.getElementById('rmHours').textContent=`${hrs.toFixed(1)} / 15.0 hrs`;
+    document.getElementById('rmBar').style.width=Math.min(100,hrs/15*100)+'%';
+    const mg=document.getElementById('rmMilestones');mg.innerHTML='';
+    let mDone=0;
+    RM_MILESTONES.forEach((m,i)=>{
+      const d=!!rmState.milestones[i];
+      if(d)mDone++;
+      const div=document.createElement('div');
+      div.className='ms-item'+(d?' done':'');
+      const cb=document.createElement('input');cb.type='checkbox';cb.checked=d;
+      const sp=document.createElement('span');sp.textContent=m;
+      cb.addEventListener('change',()=>{rmState.milestones[i]=cb.checked?1:0;rmSave();renderRoadmap();});
+      div.appendChild(cb);div.appendChild(sp);mg.appendChild(div);
+    });
+    document.getElementById('rmMsPct').textContent=`${mDone}/${RM_MILESTONES.length} done`;
+  }
+  renderRoadmap();
+
+  load(state.year,state.month);
+  monthPicker.value=`${state.year}-${String(state.month).padStart(2,'0')}`;
+  render();
+})();
+</script>
+</body>
+</html>
